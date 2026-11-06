@@ -1,349 +1,255 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import CarShowcase, { type CameraPreset } from "@/components/CarShowcase";
+import { Canvas, useThree } from "@react-three/fiber";
+import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 
-gsap.registerPlugin(ScrollTrigger);
+export type CameraPreset = "front" | "rear" | "side" | "top" | "interior";
 
-const paintOptions = [
-  { name: "Obsidian Black", value: "#070b10" },
-  { name: "Arctic Silver", value: "#c7d0d8" },
-  { name: "Crimson Red", value: "#a91327" },
-  { name: "Electric Blue", value: "#1b5bd4" },
-  { name: "Forest Green", value: "#0d4b3d" },
-  { name: "Sunset Orange", value: "#cf6b2f" },
-];
+type CarShowcaseProps = {
+  paint: string;
+  wheelStyle: string;
+  cameraPreset: CameraPreset;
+  doorOpen: number;
+  bonnetOpen: number;
+  bootOpen: number;
+};
 
-const wheelOptions = [
-  { id: "performance", label: "Performance" },
-  { id: "sport", label: "Sport" },
-  { id: "track", label: "Track" },
-];
+const cameraViews: Record<CameraPreset, [number, number, number]> = {
+  front: [0, 2.1, 6.3],
+  rear: [0, 2.1, -6.3],
+  side: [6.3, 1.8, 0],
+  top: [0, 8.2, 0.2],
+  interior: [0, 1.55, 0.15],
+};
 
-const specs = [
-  { label: "Power", value: "670 hp" },
-  { label: "0-100 km/h", value: "3.1 s" },
-  { label: "Top Speed", value: "250 km/h" },
-  { label: "Drive", value: "AWD" },
-];
+function Wheel({ x, z, wheelStyle }: { x: number; z: number; wheelStyle: string }) {
+  const rimColor = wheelStyle === "track" ? "#aeb8c2" : wheelStyle === "sport" ? "#7d8792" : "#c5cbd1";
+  const spokeCount = wheelStyle === "track" ? 10 : wheelStyle === "sport" ? 7 : 5;
+  return (
+    <group position={[x, 0.48, z]} rotation={[0, 0, Math.PI / 2]}>
+      <mesh castShadow receiveShadow>
+        <cylinderGeometry args={[0.47, 0.47, 0.3, 48]} />
+        <meshStandardMaterial color="#090b0e" roughness={0.82} metalness={0.08} />
+      </mesh>
+      <mesh position={[0, 0.158, 0]} castShadow>
+        <cylinderGeometry args={[0.31, 0.31, 0.018, 48]} />
+        <meshStandardMaterial color={rimColor} metalness={0.92} roughness={0.22} />
+      </mesh>
+      <mesh position={[0, 0.171, 0]}>
+        <cylinderGeometry args={[0.105, 0.105, 0.025, 32]} />
+        <meshStandardMaterial color="#171c22" metalness={0.8} roughness={0.3} />
+      </mesh>
+      {Array.from({ length: spokeCount }, (_, i) => (
+        <mesh key={i} position={[0, 0.174, 0]} rotation={[0, (i / spokeCount) * Math.PI * 2, 0]}>
+          <boxGeometry args={[0.045, 0.022, 0.52]} />
+          <meshStandardMaterial color={rimColor} metalness={0.9} roughness={0.25} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.19, 0]}>
+        <cylinderGeometry args={[0.055, 0.055, 0.03, 24]} />
+        <meshStandardMaterial color="#d9e0e7" metalness={1} roughness={0.18} />
+      </mesh>
+      {Array.from({ length: 24 }, (_, i) => (
+        <mesh key={i} position={[0, 0, 0]} rotation={[0, 0, (i / 24) * Math.PI * 2]}>
+          <boxGeometry args={[0.025, 0.035, 0.49]} />
+          <meshStandardMaterial color="#252a30" roughness={0.9} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
-export default function HomePage() {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [paint, setPaint] = useState(paintOptions[0].value);
-  const [wheelStyle, setWheelStyle] = useState("performance");
-  const [cameraPreset, setCameraPreset] = useState<CameraPreset>("front");
-  const [doorOpen, setDoorOpen] = useState(0.6);
-  const [bonnetOpen, setBonnetOpen] = useState(0.2);
-  const [bootOpen, setBootOpen] = useState(0.2);
+function Door({ side, open }: { side: -1 | 1; open: number }) {
+  const pivot = useRef<THREE.Group>(null);
+  useEffect(() => {
+    if (pivot.current) pivot.current.rotation.y = side * open * 0.95;
+  }, [open, side]);
+  return (
+    <group ref={pivot} position={[side * 0.91, 0.83, 0.05]}>
+      <RoundedBox args={[0.12, 0.66, 1.52]} radius={0.08} smoothness={4} position={[side * 0.04, -0.12, 0]} castShadow>
+        <meshPhysicalMaterial color="#202831" metalness={0.72} roughness={0.28} />
+      </RoundedBox>
+      <mesh position={[side * 0.045, 0.31, 0]} rotation={[0, 0, 0]}>
+        <boxGeometry args={[0.035, 0.38, 1.32]} />
+        <meshPhysicalMaterial color="#101d2b" metalness={0.45} roughness={0.12} transparent opacity={0.78} />
+      </mesh>
+      <mesh position={[side * 0.11, -0.1, -0.1]}>
+        <boxGeometry args={[0.025, 0.035, 0.18]} />
+        <meshStandardMaterial color="#c7cdd2" metalness={0.95} roughness={0.2} />
+      </mesh>
+      <mesh position={[side * 0.1, -0.3, 0.43]}>
+        <boxGeometry args={[0.02, 0.08, 0.06]} />
+        <meshStandardMaterial color="#bfc7cf" metalness={0.85} roughness={0.24} />
+      </mesh>
+    </group>
+  );
+}
+
+function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOpen }: CarShowcaseProps) {
+  const { camera } = useThree();
+  const bodyMaterial = useMemo(
+    () => new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.82, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.12 }),
+    [paint]
+  );
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        ".headline",
-        { opacity: 0, y: 44 },
-        { opacity: 1, y: 0, duration: 1.1, ease: "power3.out" }
-      );
+    const view = cameraViews[cameraPreset];
+    camera.position.set(view[0], view[1], view[2]);
+    camera.lookAt(0, cameraPreset === "interior" ? 1.1 : 0.8, 0);
+  }, [camera, cameraPreset]);
 
-      gsap.utils.toArray<HTMLElement>(".reveal").forEach((element, index) => {
-        gsap.fromTo(
-          element,
-          { opacity: 0, y: 32 },
-          { opacity: 1, y: 0, duration: 1, ease: "power2.out", delay: index * 0.1, scrollTrigger: { trigger: element, start: "top 85%" } }
-        );
-      });
-
-      gsap.to(".scroll-panel", {
-        y: -95,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".section-sequence",
-          start: "top center",
-          end: "bottom bottom",
-          scrub: true,
-        },
-      });
-    }, rootRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  const handleFullscreen = async () => {
-    const doc = document.documentElement;
-    if (!document.fullscreenElement) {
-      await doc.requestFullscreen().catch(() => undefined);
-    } else {
-      await document.exitFullscreen().catch(() => undefined);
-    }
-  };
-
-  const handleCamera = (preset: CameraPreset) => setCameraPreset(preset);
+  const hoodRef = useRef<THREE.Group>(null);
+  const trunkRef = useRef<THREE.Group>(null);
+  useEffect(() => {
+    if (hoodRef.current) hoodRef.current.rotation.x = -bonnetOpen * 0.62;
+    if (trunkRef.current) trunkRef.current.rotation.x = bootOpen * 0.5;
+  }, [bonnetOpen, bootOpen]);
 
   return (
-    <div ref={rootRef} className="min-h-screen bg-[#05080d] text-white selection:bg-white/20">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#05080d]/75 backdrop-blur-xl">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-xs font-semibold tracking-[0.28em] text-white/90">
-              A
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.38em] text-white/50">Apex</p>
-              <p className="text-sm font-semibold tracking-[0.2em] text-white/80">MOTORS</p>
-            </div>
-          </div>
+    <group>
+      <mesh position={[0, 0.53, 0]} castShadow receiveShadow material={bodyMaterial}>
+        <RoundedBox args={[2.05, 0.48, 4.55]} radius={0.24} smoothness={6} />
+      </mesh>
+      <mesh position={[0, 0.78, -0.02]} castShadow material={bodyMaterial}>
+        <RoundedBox args={[1.94, 0.3, 3.72]} radius={0.18} smoothness={5} />
+      </mesh>
 
-          <div className="hidden items-center gap-10 text-xs uppercase tracking-[0.28em] text-white/60 md:flex">
-            <a href="#experience" className="transition hover:text-white">Experience</a>
-            <a href="#performance" className="transition hover:text-white">Performance</a>
-            <a href="#design" className="transition hover:text-white">Design</a>
-            <a href="#specs" className="transition hover:text-white">Specs</a>
-          </div>
+      <group ref={hoodRef} position={[0, 0.76, 1.38]}>
+        <mesh position={[0, 0.13, 0.47]} castShadow material={bodyMaterial}>
+          <RoundedBox args={[1.88, 0.2, 1.22]} radius={0.12} smoothness={5} />
+        </mesh>
+        <mesh position={[0, 0.245, 0.42]}>
+          <boxGeometry args={[0.72, 0.018, 0.5]} />
+          <meshStandardMaterial color="#303a44" metalness={0.8} roughness={0.3} />
+        </mesh>
+      </group>
 
-          <button className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.32em] text-white/80 transition hover:border-white/30 hover:bg-white/10">
-            Book a drive
-          </button>
-        </nav>
-      </header>
+      <group ref={trunkRef} position={[0, 0.78, -1.52]}>
+        <mesh position={[0, 0.1, -0.42]} castShadow material={bodyMaterial}>
+          <RoundedBox args={[1.88, 0.18, 0.95]} radius={0.1} smoothness={5} />
+        </mesh>
+      </group>
 
-      <main>
-        <section id="experience" className="relative overflow-hidden border-b border-white/10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(149,165,180,0.18),_transparent_35%)]" />
-          <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-6 pb-20 pt-10 lg:grid-cols-[1.05fr_1.35fr] lg:px-10 lg:pt-16">
-            <div className="headline space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.28em] text-white/70">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                2026 Apex GT-R 
-              </div>
+      <mesh position={[0, 1.16, -0.25]} castShadow material={bodyMaterial}>
+        <RoundedBox args={[1.72, 0.72, 1.92]} radius={0.34} smoothness={8} />
+      </mesh>
+      <mesh position={[0, 1.57, -0.28]} castShadow material={bodyMaterial}>
+        <RoundedBox args={[1.5, 0.13, 1.22]} radius={0.22} smoothness={8} />
+      </mesh>
+      <mesh position={[0, 1.25, 0.73]} rotation={[-0.43, 0, 0]}>
+        <boxGeometry args={[1.48, 0.58, 0.035]} />
+        <meshPhysicalMaterial color="#152536" metalness={0.45} roughness={0.1} transparent opacity={0.78} />
+      </mesh>
+      <mesh position={[0, 1.23, -1.18]} rotation={[0.42, 0, 0]}>
+        <boxGeometry args={[1.4, 0.5, 0.035]} />
+        <meshPhysicalMaterial color="#152536" metalness={0.45} roughness={0.1} transparent opacity={0.78} />
+      </mesh>
+      <mesh position={[0, 1.2, -0.25]}>
+        <boxGeometry args={[0.035, 0.62, 1.65]} />
+        <meshStandardMaterial color="#080d13" metalness={0.3} roughness={0.35} />
+      </mesh>
 
-              <div className="space-y-5">
-                <p className="text-[10px] uppercase tracking-[0.45em] text-white/50">Electric performance</p>
-                <h1 className="max-w-xl text-5xl font-semibold leading-[0.9] tracking-[-0.05em] text-white md:text-6xl xl:text-8xl">
-                  Sculpted for the next horizon.
-                </h1>
-              </div>
+      <mesh position={[0, 0.94, 0.05]}>
+        <boxGeometry args={[1.54, 0.12, 1.48]} />
+        <meshStandardMaterial color="#151b22" roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 1.02, -0.72]}>
+        <boxGeometry args={[1.45, 0.48, 0.2]} />
+        <meshStandardMaterial color="#171c22" roughness={0.8} />
+      </mesh>
+      {[-0.48, 0.48].map((x) => (
+        <group key={x} position={[x, 1.0, -0.32]}>
+          <mesh castShadow>
+            <RoundedBox args={[0.42, 0.52, 0.46]} radius={0.12} smoothness={5} />
+            <meshStandardMaterial color="#171c23" roughness={0.86} />
+          </mesh>
+          <mesh position={[0, 0.32, -0.16]}>
+            <RoundedBox args={[0.38, 0.22, 0.16]} radius={0.08} smoothness={4} />
+            <meshStandardMaterial color="#202a34" roughness={0.75} />
+          </mesh>
+        </group>
+      ))}
 
-              <p className="max-w-lg text-base leading-7 text-white/65">
-                Precision-built luxury performance with advanced aerodynamics, a driver-first cockpit, and a cinematic 360° showcase designed to feel as fast as it looks.
-              </p>
+      <Door side={-1} open={doorOpen} />
+      <Door side={1} open={doorOpen} />
 
-              <div className="flex flex-wrap gap-4">
-                <button
-                  onClick={() => setCameraPreset("interior")}
-                  className="rounded-full bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#0a0d12] transition hover:scale-[1.02]"
-                >
-                  Explore interior
-                </button>
-                <button
-                  onClick={() => handleFullscreen()}
-                  className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:border-white/30 hover:bg-white/10"
-                >
-                  Fullscreen
-                </button>
-              </div>
+      <Wheel x={-1.02} z={1.42} wheelStyle={wheelStyle} />
+      <Wheel x={1.02} z={1.42} wheelStyle={wheelStyle} />
+      <Wheel x={-1.02} z={-1.42} wheelStyle={wheelStyle} />
+      <Wheel x={1.02} z={-1.42} wheelStyle={wheelStyle} />
 
-              <div className="grid max-w-md grid-cols-2 gap-4 pt-4 sm:grid-cols-4">
-                {specs.map((spec) => (
-                  <div key={spec.label} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-[10px] uppercase tracking-[0.28em] text-white/50">{spec.label}</p>
-                    <p className="mt-2 text-lg font-semibold tracking-[-0.05em] text-white">{spec.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {[-0.67, 0.67].map((x) => (
+        <group key={x} position={[x, 0.79, 2.08]}>
+          <mesh castShadow>
+            <RoundedBox args={[0.46, 0.15, 0.12]} radius={0.06} smoothness={4} />
+            <meshPhysicalMaterial color="#e8f4ff" emissive="#b8dfff" emissiveIntensity={1.1} metalness={0.35} roughness={0.18} />
+          </mesh>
+          <mesh position={[0, -0.14, 0.015]}>
+            <boxGeometry args={[0.35, 0.025, 0.025]} />
+            <meshStandardMaterial color="#f4f7fa" emissive="#dbeeff" emissiveIntensity={0.8} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.52, 2.13]}>
+        <RoundedBox args={[0.72, 0.2, 0.08]} radius={0.035} smoothness={4} />
+        <meshStandardMaterial color="#10151b" metalness={0.8} roughness={0.28} />
+      </mesh>
+      {Array.from({ length: 9 }, (_, i) => (
+        <mesh key={i} position={[-0.31 + i * 0.078, 0.52, 2.18]}>
+          <boxGeometry args={[0.025, 0.13, 0.018]} />
+          <meshStandardMaterial color="#89939e" metalness={0.85} roughness={0.24} />
+        </mesh>
+      ))}
+      {[-0.7, 0.7].map((x) => (
+        <mesh key={x} position={[x, 0.78, -2.08]}>
+          <RoundedBox args={[0.48, 0.14, 0.1]} radius={0.06} smoothness={4} />
+          <meshStandardMaterial color="#7b101a" emissive="#8b0714" emissiveIntensity={0.7} roughness={0.25} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.38, -2.18]}>
+        <boxGeometry args={[1.45, 0.12, 0.08]} />
+        <meshStandardMaterial color="#151b22" metalness={0.65} roughness={0.3} />
+      </mesh>
 
-            <div className="relative">
-              <div className="scroll-panel rounded-[2rem] border border-white/10 bg-[#0a0d12]/80 p-4 shadow-[0_0_80px_rgba(59,130,246,0.15)]">
-                <div className="rounded-[1.5rem] border border-white/10 bg-[#070b10] p-3">
-                  <CarShowcase
-                    paint={paint}
-                    wheelStyle={wheelStyle}
-                    cameraPreset={cameraPreset}
-                    doorOpen={doorOpen}
-                    bonnetOpen={bonnetOpen}
-                    bootOpen={bootOpen}
-                  />
-                </div>
-              </div>
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * 0.96, 1.18, 0.56]}>
+          <mesh position={[side * 0.13, 0.02, 0]}>
+            <boxGeometry args={[0.28, 0.08, 0.16]} />
+            <meshStandardMaterial color="#171d24" metalness={0.65} roughness={0.3} />
+          </mesh>
+          <mesh position={[side * 0.23, 0.06, 0]}>
+            <RoundedBox args={[0.18, 0.14, 0.28]} radius={0.05} smoothness={4} />
+            <meshPhysicalMaterial color="#101820" metalness={0.5} roughness={0.15} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.28, 0]}>
+        <boxGeometry args={[1.45, 0.12, 3.45]} />
+        <meshStandardMaterial color="#0b1016" roughness={0.95} />
+      </mesh>
+    </group>
+  );
+}
 
-              <div className="pointer-events-none absolute -bottom-5 left-5 right-5 grid gap-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-4 backdrop-blur-xl md:grid-cols-[1fr_auto] md:items-center">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">Camera</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {(["front", "rear", "side", "top", "interior"] as const).map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => handleCamera(preset)}
-                        className={`rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] transition ${
-                          cameraPreset === preset
-                            ? "bg-white text-[#081014]"
-                            : "border border-white/10 bg-white/5 text-white/75 hover:border-white/20 hover:bg-white/10"
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setCameraPreset("front")}
-                  className="pointer-events-auto rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/80 transition hover:border-white/30 hover:bg-white/10"
-                >
-                  Reset view
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
-          <div className="reveal mb-10 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.38em] text-white/50">Configurator</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-white md:text-5xl">Build your exact dream spec.</h2>
-            </div>
-            <div className="hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-white/65 md:block">
-              Live options
-            </div>
-          </div>
-
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="reveal rounded-[2rem] border border-white/10 bg-white/[0.03] p-6">
-              <div className="space-y-8">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">Exterior finish</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    {paintOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setPaint(option.value)}
-                        className={`group flex items-center gap-3 rounded-full border px-3 py-2 transition ${
-                          paint === option.value ? "border-white/40 bg-white/10" : "border-white/10 bg-transparent hover:border-white/20"
-                        }`}
-                        title={option.name}
-                      >
-                        <span
-                          className="h-5 w-5 rounded-full border border-white/20"
-                          style={{ background: option.value }}
-                        />
-                        <span className="text-[10px] uppercase tracking-[0.22em] text-white/80">{option.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">Alloy package</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    {wheelOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={() => setWheelStyle(option.id)}
-                        className={`rounded-full border px-4 py-2 text-[10px] uppercase tracking-[0.25em] transition ${
-                          wheelStyle === option.id ? "border-white/40 bg-white/10 text-white" : "border-white/10 bg-transparent text-white/75 hover:border-white/20"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">Mechanical access</p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <button onClick={() => setDoorOpen((prev) => (prev > 0.1 ? 0 : 0.6))} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-[10px] uppercase tracking-[0.2em] text-white/80 hover:border-white/20">
-                      {doorOpen > 0.1 ? "Close doors" : "Open doors"}
-                    </button>
-                    <button onClick={() => setBonnetOpen((prev) => (prev > 0.1 ? 0 : 0.6))} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-[10px] uppercase tracking-[0.2em] text-white/80 hover:border-white/20">
-                      {bonnetOpen > 0.1 ? "Close bonnet" : "Open bonnet"}
-                    </button>
-                    <button onClick={() => setBootOpen((prev) => (prev > 0.1 ? 0 : 0.6))} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-[10px] uppercase tracking-[0.2em] text-white/80 hover:border-white/20">
-                      {bootOpen > 0.1 ? "Close boot" : "Open boot"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="reveal grid gap-5 md:grid-cols-3">
-              {[
-                { title: "Aerodynamic profile", body: "Active airflow channels optimize downforce while preserving a low drag silhouette." },
-                { title: "Driver cockpit", body: "A layered dashboard, full-width display, and carbon sports seats create an immersive cabin." },
-                { title: "Luxury detail", body: "Ambient light, leather stitching, and brushed metal finishes add a refined performance character." },
-              ].map((feature) => (
-                <article key={feature.title} className="rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-5">
-                  <div className="mb-4 h-10 w-10 rounded-full border border-white/10 bg-white/5" />
-                  <h3 className="text-xl font-medium tracking-[-0.05em] text-white">{feature.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-white/60">{feature.body}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="performance" className="section-sequence border-t border-b border-white/10 bg-[#091018]">
-          <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:px-10">
-            <div className="reveal space-y-6">
-              <p className="text-[10px] uppercase tracking-[0.4em] text-white/50">Performance</p>
-              <h3 className="text-4xl font-semibold tracking-[-0.06em] text-white md:text-6xl">Precision in every motion.</h3>
-              <p className="max-w-lg text-base leading-7 text-white/65">
-                A dual-motor architecture delivers immediate torque vectoring, a low centre of gravity, and dynamically balanced handling on every road surface.
-              </p>
-            </div>
-
-            <div className="reveal grid gap-4 sm:grid-cols-2">
-              {[
-                ["Battery", "98 kWh"],
-                ["Range", "520 km"],
-                ["Charging", "18 min to 80%"],
-                ["Traction", "Torque vectoring"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-white/50">{label}</p>
-                  <p className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-white">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="design" className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
-          <div className="reveal mb-6">
-            <p className="text-[10px] uppercase tracking-[0.38em] text-white/50">Design language</p>
-            <h3 className="mt-3 text-4xl font-semibold tracking-[-0.06em] text-white md:text-6xl">Luxury, crafted for speed.</h3>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {[
-              { title: "Glass canopy", body: "Curved panoramic glass creates an airy, immersive cabin while reducing visual drag." },
-              { title: "Carbon aero kit", body: "Front splitter, rear diffuser, and side skirts sharpen the vehicle’s performance stance." },
-              { title: "Adaptive LED lighting", body: "Signature light signatures amplify the GT-R silhouette at night and in motion." },
-            ].map((chunk) => (
-              <div key={chunk.title} className="reveal rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-6">
-                <div className="mb-4 h-14 w-14 rounded-full border border-white/10 bg-[radial-gradient(circle,_rgba(255,255,255,0.18),_rgba(255,255,255,0.02)_70%)]" />
-                <h4 className="text-2xl font-medium tracking-[-0.05em] text-white">{chunk.title}</h4>
-                <p className="mt-4 text-sm leading-6 text-white/60">{chunk.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="specs" className="border-t border-white/10 bg-[#05080d]">
-          <div className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
-            <div className="reveal flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.38em] text-white/50">360° showcase</p>
-                <h3 className="mt-3 text-4xl font-semibold tracking-[-0.06em] text-white md:text-6xl">Tailored for luxury drivers.</h3>
-              </div>
-              <button onClick={() => setCameraPreset("side")} className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-[10px] uppercase tracking-[0.25em] text-white/80 transition hover:border-white/30 hover:bg-white/10">
-                Start showcase
-              </button>
-            </div>
-          </div>
-        </section>
-      </main>
+export default function CarShowcase(props: CarShowcaseProps) {
+  return (
+    <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-[radial-gradient(ellipse_at_50%_42%,#1a2634_0%,#080d14_58%,#05080d_100%)] sm:h-[430px]">
+      <Canvas shadows dpr={[1, 1.5]} camera={{ position: cameraViews.front, fov: 38 }} gl={{ antialias: true, alpha: true }}>
+        <color attach="background" args={["#070b10"]} />
+        <ambientLight intensity={0.8} />
+        <hemisphereLight args={["#d8e8ff", "#10151d", 1.1]} />
+        <directionalLight position={[5, 8, 5]} intensity={2.5} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[-5, 4, -4]} intensity={1.4} color="#8dbdff" />
+        <spotLight position={[0, 6, 2]} intensity={1.8} angle={0.55} penumbra={0.8} color="#ffffff" />
+        <Vehicle {...props} />
+        <ContactShadows position={[0, 0.015, 0]} opacity={0.42} scale={8} blur={2.8} far={4} />
+        <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={4.2} maxDistance={10} maxPolarAngle={Math.PI / 2.05} target={[0, 0.8, 0]} />
+      </Canvas>
+      <div className="pointer-events-none absolute bottom-4 left-4 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[9px] uppercase tracking-[0.3em] text-white/55 backdrop-blur">
+        Drag to rotate · Scroll to zoom
+      </div>
     </div>
   );
 }
