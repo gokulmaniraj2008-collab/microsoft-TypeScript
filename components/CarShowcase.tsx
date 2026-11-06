@@ -109,17 +109,11 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
 
   return (
     <group>
-      <mesh position={[0, 0.53, 0]} castShadow receiveShadow material={bodyMaterial}>
-        <RoundedBox args={[2.05, 0.48, 4.55]} radius={0.24} smoothness={6} />
-      </mesh>
-      <mesh position={[0, 0.78, -0.02]} castShadow material={bodyMaterial}>
-        <RoundedBox args={[1.94, 0.3, 3.72]} radius={0.18} smoothness={5} />
-      </mesh>
+      <RoundedBox position={[0, 0.53, 0]} args={[2.05, 0.48, 4.55]} radius={0.24} smoothness={6} castShadow receiveShadow material={bodyMaterial} />
+      <RoundedBox position={[0, 0.78, -0.02]} args={[1.94, 0.3, 3.72]} radius={0.18} smoothness={5} castShadow material={bodyMaterial} />
 
       <group ref={hoodRef} position={[0, 0.76, 1.38]}>
-        <mesh position={[0, 0.13, 0.47]} castShadow material={bodyMaterial}>
-          <RoundedBox args={[1.88, 0.2, 1.22]} radius={0.12} smoothness={5} />
-        </mesh>
+        <RoundedBox position={[0, 0.13, 0.47]} args={[1.88, 0.2, 1.22]} radius={0.12} smoothness={5} castShadow material={bodyMaterial} />
         <mesh position={[0, 0.245, 0.42]}>
           <boxGeometry args={[0.72, 0.018, 0.5]} />
           <meshStandardMaterial color="#303a44" metalness={0.8} roughness={0.3} />
@@ -127,17 +121,11 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
       </group>
 
       <group ref={trunkRef} position={[0, 0.78, -1.52]}>
-        <mesh position={[0, 0.1, -0.42]} castShadow material={bodyMaterial}>
-          <RoundedBox args={[1.88, 0.18, 0.95]} radius={0.1} smoothness={5} />
-        </mesh>
+        <RoundedBox position={[0, 0.1, -0.42]} args={[1.88, 0.18, 0.95]} radius={0.1} smoothness={5} castShadow material={bodyMaterial} />
       </group>
 
-      <mesh position={[0, 1.16, -0.25]} castShadow material={bodyMaterial}>
-        <RoundedBox args={[1.72, 0.72, 1.92]} radius={0.34} smoothness={8} />
-      </mesh>
-      <mesh position={[0, 1.57, -0.28]} castShadow material={bodyMaterial}>
-        <RoundedBox args={[1.5, 0.13, 1.22]} radius={0.22} smoothness={8} />
-      </mesh>
+      <RoundedBox position={[0, 1.16, -0.25]} args={[1.72, 0.72, 1.92]} radius={0.34} smoothness={8} castShadow material={bodyMaterial} />
+      <RoundedBox position={[0, 1.57, -0.28]} args={[1.5, 0.13, 1.22]} radius={0.22} smoothness={8} castShadow material={bodyMaterial} />
       <mesh position={[0, 1.25, 0.73]} rotation={[-0.43, 0, 0]}>
         <boxGeometry args={[1.48, 0.58, 0.035]} />
         <meshPhysicalMaterial color="#152536" metalness={0.45} roughness={0.1} transparent opacity={0.78} />
@@ -161,14 +149,12 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
       </mesh>
       {[-0.48, 0.48].map((x) => (
         <group key={x} position={[x, 1.0, -0.32]}>
-          <mesh castShadow>
-            <RoundedBox args={[0.42, 0.52, 0.46]} radius={0.12} smoothness={5} />
+          <RoundedBox args={[0.42, 0.52, 0.46]} radius={0.12} smoothness={5} castShadow>
             <meshStandardMaterial color="#171c23" roughness={0.86} />
-          </mesh>
-          <mesh position={[0, 0.32, -0.16]}>
-            <RoundedBox args={[0.38, 0.22, 0.16]} radius={0.08} smoothness={4} />
+          </RoundedBox>
+          <RoundedBox position={[0, 0.32, -0.16]} args={[0.38, 0.22, 0.16]} radius={0.08} smoothness={4}>
             <meshStandardMaterial color="#202a34" roughness={0.75} />
-          </mesh>
+          </RoundedBox>
         </group>
       ))}
 
@@ -192,10 +178,9 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
           </mesh>
         </group>
       ))}
-      <mesh position={[0, 0.52, 2.13]}>
-        <RoundedBox args={[0.72, 0.2, 0.08]} radius={0.035} smoothness={4} />
+      <RoundedBox position={[0, 0.52, 2.13]} args={[0.72, 0.2, 0.08]} radius={0.035} smoothness={4}>
         <meshStandardMaterial color="#10151b" metalness={0.8} roughness={0.28} />
-      </mesh>
+      </RoundedBox>
       {Array.from({ length: 9 }, (_, i) => (
         <mesh key={i} position={[-0.31 + i * 0.078, 0.52, 2.18]}>
           <boxGeometry args={[0.025, 0.13, 0.018]} />
@@ -219,10 +204,9 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
             <boxGeometry args={[0.28, 0.08, 0.16]} />
             <meshStandardMaterial color="#171d24" metalness={0.65} roughness={0.3} />
           </mesh>
-          <mesh position={[side * 0.23, 0.06, 0]}>
-            <RoundedBox args={[0.18, 0.14, 0.28]} radius={0.05} smoothness={4} />
+          <RoundedBox position={[side * 0.23, 0.06, 0]} args={[0.18, 0.14, 0.28]} radius={0.05} smoothness={4}>
             <meshPhysicalMaterial color="#101820" metalness={0.5} roughness={0.15} />
-          </mesh>
+          </RoundedBox>
         </group>
       ))}
       <mesh position={[0, 0.28, 0]}>
