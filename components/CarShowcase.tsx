@@ -168,10 +168,9 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
 
       {[-0.67, 0.67].map((x) => (
         <group key={x} position={[x, 0.79, 2.08]}>
-          <mesh castShadow>
-            <RoundedBox args={[0.46, 0.15, 0.12]} radius={0.06} smoothness={4} />
+          <RoundedBox args={[0.46, 0.15, 0.12]} radius={0.06} smoothness={4} castShadow>
             <meshPhysicalMaterial color="#e8f4ff" emissive="#b8dfff" emissiveIntensity={1.1} metalness={0.35} roughness={0.18} />
-          </mesh>
+          </RoundedBox>
           <mesh position={[0, -0.14, 0.015]}>
             <boxGeometry args={[0.35, 0.025, 0.025]} />
             <meshStandardMaterial color="#f4f7fa" emissive="#dbeeff" emissiveIntensity={0.8} />
@@ -188,10 +187,9 @@ function Vehicle({ paint, wheelStyle, cameraPreset, doorOpen, bonnetOpen, bootOp
         </mesh>
       ))}
       {[-0.7, 0.7].map((x) => (
-        <mesh key={x} position={[x, 0.78, -2.08]}>
-          <RoundedBox args={[0.48, 0.14, 0.1]} radius={0.06} smoothness={4} />
+        <RoundedBox key={x} position={[x, 0.78, -2.08]} args={[0.48, 0.14, 0.1]} radius={0.06} smoothness={4}>
           <meshStandardMaterial color="#7b101a" emissive="#8b0714" emissiveIntensity={0.7} roughness={0.25} />
-        </mesh>
+        </RoundedBox>
       ))}
       <mesh position={[0, 0.38, -2.18]}>
         <boxGeometry args={[1.45, 0.12, 0.08]} />
